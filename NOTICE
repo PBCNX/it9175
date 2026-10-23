@@ -1,0 +1,13 @@
+it9175 bundles two things that are not original work:
+
+1. `it9175/firmware.bin` — the IT9175 firmware image, extracted from the vendor Android application. It is vendor firmware, not covered by this
+   project's MIT licence. It is kept for private interoperability testing only;
+   do not redistribute it. The protocol code works without it (the driver
+   simply cannot start a blank dongle).
+
+2. `vendor/usb/` (pyusb, BSD-3-Clause) and
+   `vendor/windows/x64/libusb-1.0.dll` (libusb, LGPL-2.1). Their licences are
+   in `vendor/usb/LICENSE` and `vendor/windows/x64/LICENSE`.
+
+The register tables in `it9175/tables.py` were generated from the OpenDTV
+Android driver's Java source; that source is part of the same private project.
