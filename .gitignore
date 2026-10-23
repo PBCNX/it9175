@@ -1,0 +1,34 @@
+.tmp/
+.venv/
+__pycache__/
+*.pyc
+*.ts
+*.log
+build/
+dist/
+*.egg-info/
+
+# vendor firmware images are never committed
+it9175/firmware.bin
+*.bin
+!vendor/windows/x64/*.dll
+
+# vendor-derived capture harness: contains vendor .so files and decompiled glue
+android-capture/
+
+# captured USB traces and test streams
+captures/
+
+it9308/
+it9309/
+px4_drv-ph/
+README-FULL.md
+smsrio/
+
+**/java/out/
+**/java/.gradle/
+java/build/
+
+coordination/
+s870/
+SESSION-BOARD.md
