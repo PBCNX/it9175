@@ -4,6 +4,12 @@ Notable changes only. The version in `pyproject.toml` and
 `it9175/__init__.py` and the `vX.Y.Z` tag are kept in step; see
 [`docs/versioning.md`](docs/versioning.md).
 
+## 0.2.1 — 2026-11-03
+
+- Licence: the copyright holder is now **The IT9175 Open Driver Authors**
+  (was PBCNX), with the same author in `pyproject.toml` and the README.
+  No code change.
+
 ## 0.2.0 — 2026-11-03
 
 - Android: a minimal demo APK (`it9175/java/android/demo`) links the Java core

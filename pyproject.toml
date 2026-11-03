@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "it9175"
-version = "0.2.0"
+version = "0.2.1"
 description = "Cross-platform user-space driver for the IT9175 ISDB-T dongle (048d:275a)"
+authors = [{ name = "The IT9175 Open Driver Authors" }]
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }

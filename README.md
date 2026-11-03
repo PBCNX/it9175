@@ -87,7 +87,7 @@ the private tree.
 
 ## Licence
 
-MIT — see [`LICENSE`](LICENSE). Same terms as `it9308`/`it9309`. The Java core
+MIT — see [`LICENSE`](LICENSE). Copyright (c) 2026 The IT9175 Open Driver Authors. Same terms as `it9308`/`it9309`. The Java core
 is a port of OpenDTV's `It9175Tuner` (`jpdcs/OpenDTV`, MIT); the Python driver,
 the protocol document and the verification record are this project's. Nothing
 GPL crosses in. The vendor firmware is outside the licence (`NOTICE`).

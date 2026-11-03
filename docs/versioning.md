@@ -79,7 +79,11 @@ stay local. The firmware is supplied by the user (`--firmware PATH` or
 
 ## Current
 
-- `v0.2.0` — 2026-11-03, **70-file curated** public snapshot: README trimmed,
+- `v0.2.1` — 2026-11-03, licence-only patch: copyright holder is
+  **The IT9175 Open Driver Authors**; no code change.
+- `v0.2.0` — 2026-11-03, **published; 70-file curated** public snapshot at
+  commit `19575fa`, tag `v0.2.0`, source-only release
+  (`https://github.com/PBCNX/it9175/releases/tag/v0.2.0`): README trimmed,
   `INSTALL.md` added, public docs `protocol` + `verification` + `versioning`,
   private `testing`/`vendor-api`/`compatibility`; adds the Android demo, the
   Java core proven on a phone, 32,768-byte TS reads, macOS Intel and the
@@ -93,4 +97,4 @@ stay local. The firmware is supplied by the user (`--firmware PATH` or
   leak commits are gone from public refs and the archive URL is 404 anonymously;
   the old-name raw URL served from Fastly's cache for a few minutes after the
   flip, then 404s because the new repo has no such object. The first public
-  commit will be the `v0.2.0` release commit.
+  commit is `19575fa` (`v0.2.0`).
