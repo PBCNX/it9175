@@ -1,0 +1,5 @@
+# ITE IT9175 ISDB-T dongle
+# TAG+="uaccess" covers a local desktop session.  A headless/SSH login gets no
+# logind seat, so the uaccess ACL is never applied; GROUP="plugdev" (the Debian
+# and Raspberry Pi OS group for raw USB access) covers that case.
+SUBSYSTEM=="usb", ATTR{idVendor}=="048d", ATTR{idProduct}=="275a", TAG+="uaccess", GROUP="plugdev", MODE="0660"

@@ -1,0 +1,44 @@
+// Minimal Android harness for the it9175 Java core.
+//
+// It links the core and the Android adapter by source, so there is no library
+// artifact to publish. Build from this directory with JAVA_HOME pointing at a
+// JDK 17 and ANDROID_HOME at the SDK (platform 34):
+//
+//   gradle assembleDebug --offline
+//
+// The vendor firmware is NOT in this repo or in the APK: push it to the app's
+// external files directory before running (see README.md).
+
+plugins {
+    id 'com.android.application' version '8.10.1'
+}
+
+android {
+    namespace 'ph.pbcnx.it9175.demo'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'ph.pbcnx.it9175.demo'
+        minSdk 23
+        targetSdk 34
+        versionCode 2
+        versionName '0.2.0'
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = [
+                    'src/main/java',
+                    '../../src/main/java',   // it9175 java core
+                    '../src/main/java'      // AndroidTransport / AndroidTsReader
+            ]
+            res.srcDirs = ['src/main/res']
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

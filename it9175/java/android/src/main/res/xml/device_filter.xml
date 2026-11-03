@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ITE IT9175 ISDB-T, "GMA NOW" (048d:275a) -->
+    <usb-device vendor-id="1165" product-id="10074" />
+</resources>

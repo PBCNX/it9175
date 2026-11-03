@@ -1,0 +1,30 @@
+it9175 bundles two things that are not original work:
+
+1. `it9175/firmware.bin` — the IT9175 firmware image, extracted from the vendor Android application. It is vendor firmware, not covered by this
+   project's MIT licence. It is kept for private interoperability testing only;
+   do not redistribute it. The protocol code works without it (the driver
+   simply cannot start a blank dongle).
+
+2. `vendor/usb/` (pyusb, BSD-3-Clause) and
+   `vendor/windows/x64/libusb-1.0.dll` (libusb, LGPL-2.1). Their licences are
+   in `vendor/usb/LICENSE` and `vendor/windows/x64/LICENSE`.
+
+## Upstream
+
+The Java core (`it9175/java`) is a port of OpenDTV's `It9175Tuner` / `AfaCmd` /
+`It9175Data` (`jpdcs/OpenDTV`, MIT). The register tables in `it9175/tables.py`
+were generated from that same source. The Python driver, `docs/protocol.md` and
+the verification record are original to this project.
+
+The direction is written down on purpose: **OpenDTV is the original; this tree
+references it.** On 2026-11-03 the 295-command parity log was run against
+OpenDTV's own `It9175Tuner` with identical canned inputs — byte-identical writes,
+so the two cores agree on init and two tunes.
+
+## Provenance marker
+
+`it9175-pbcnx` is a visible provenance/attribution string in the Python and Java
+metadata (`--version`, `It9175Device.PROVENANCE`). It is intended to make the
+origin searchable and to encourage the MIT notice to travel with copies. It is
+**not** telemetry: it performs no network or device I/O, carries no user or
+device identifier, and changes no protocol bytes.
