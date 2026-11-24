@@ -1,0 +1,45 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.pbcnx.tuner'
+version = '2.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+// The door names android.content.Context and android.hardware.usb.UsbDevice, so the interface needs the
+// platform stubs at compile time only.
+def androidJar = System.getenv('ANDROID_HOME') ?
+        "${System.getenv('ANDROID_HOME')}/platforms/android-34/android.jar" : ''
+
+dependencies {
+    if (androidJar && file(androidJar).exists()) {
+        compileOnly files(androidJar)
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifactId = 'contract'
+        }
+    }
+    repositories {
+        maven {
+            url = uri("${rootDir}/../../../dist/m2/repository")
+        }
+    }
+}
+
+// Reproducible jars: by default `jar` stamps every entry with its file mtime, so a rebuild of unchanged
+// sources produces a different artefact - and a hash-pinned artefact is then pinning a timestamp. Fixed mtimes
+// and stable entry order make two builds of the same classes byte-identical (found while pinning a driver package, 2026-11-22).
+tasks.withType(Jar).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}

@@ -5,6 +5,7 @@ arithmetic are kept verbatim so the behaviour matches the verified Android
 driver; only the IO layer is abstract (see it9175.device).
 """
 from . import tables
+from .status import Status
 
 LINK = 0
 OFDM = 8
@@ -337,37 +338,31 @@ class Tuner:
 
     def status(self):
         tps = self.rd(OFDM, 0xF5A9)
-        locked = tps >= 0 and (tps & 1) != 0 and self.mpeg2_locked()
-        result = {
-            "locked": locked,
-            "raw_strength": -1, "strength_percent": -1,
-            "raw_quality": -1, "quality_percent": -1,
-            "dbm": -1000, "raw_snr": -1, "snr_db": None,
-            "ber_errors": -1, "ber_window": -1, "ber": None,
-        }
+        result = Status()
+        result.locked = tps >= 0 and (tps & 1) != 0 and self.mpeg2_locked()
         strength = self.rd(OFDM, 0x13E)
         if strength >= 0:
-            result["raw_strength"] = strength
-            result["strength_percent"] = min(strength, 100)
+            result.raw_strength = strength
+            result.strength_percent = min(strength, 100)
         quality = self.rd(OFDM, 0x49)
         if quality >= 0:
-            result["raw_quality"] = quality
-            result["quality_percent"] = min(quality, 100)
+            result.raw_quality = quality
+            result.quality_percent = min(quality, 100)
         dbm = self.rd(OFDM, 0x13F)
         if dbm >= 0:
-            result["dbm"] = dbm - 100
+            result.dbm = dbm - 100
         snr = self.rd(OFDM, 0x1C9)
         if snr >= 0:
-            result["raw_snr"] = snr
-            result["snr_db"] = snr
+            result.raw_snr = snr
+            result.snr_db = snr
         b = self.io.read(OFDM, 0x32, 7)
         if b is not None:
             window = b[5] | (b[6] << 8)
             err = b[2] | (b[3] << 8) | (b[4] << 16)
-            result["ber_errors"] = err
-            result["ber_window"] = window
+            result.ber_errors = err
+            result.ber_window = window
             if window:
-                result["ber"] = err / (window * 204.0 * 8.0)
+                result.ber = err / (window * 204.0 * 8.0)
         return result
 
     def describe(self):

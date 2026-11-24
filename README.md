@@ -1,11 +1,11 @@
 # it9175 — ITE IT9175 ISDB-T dongle (`048d:275a`)
 
-User-space driver for the ISDB-T dongle sold as **GMA NOW** (ITE IT9175
-demodulator). It speaks the dongle's own USB protocol, uploads its firmware,
-tunes, and streams MPEG-TS to a file, stdout or UDP. libusb on Windows, macOS
-and Linux; a Java core for Android. No kernel driver, no vendor library.
+User-space driver for the ISDB-T dongle sold as **GMA NOW** (ITE IT9175). It speaks the dongle's own USB protocol,
+uploads its firmware, tunes, and streams MPEG-TS to a file, stdout or UDP; it also reads the multiplex's transmission
+parameters (TMCC) and the IIP. Python over libusb (pyusb is vendored, so there is nothing to install); a
+dependency-free Java core for Android lives in `it9175/java`.
 
-Platform setup: [`INSTALL.md`](INSTALL.md).
+**Our own code, no vendor code.**
 
 ## Device
 
@@ -14,80 +14,56 @@ Platform setup: [`INSTALL.md`](INSTALL.md).
 | USB ID | `048d:275a` |
 | Chip | ITE IT9175 ISDB-T demodulator, 6 MHz raster |
 | Endpoints | `0x02` OUT commands, `0x81` IN responses, `0x84` IN MPEG-TS |
-| TS read | 32,768 B per bulk read (512-byte multiple; packets are aligned on 188) |
+| Status | strength, quality, SNR, in-band dBm, BER and lock, from the demod's own registers |
+| TMCC | mode, guard interval, partial reception, layers A/B/C (modulation, code rate, interleave, segments) |
+| IIP | PID `0x1FF0`, one TSP per frame, CRC-32 checked |
 
-## Status
+## Platforms
 
-| Platform | State |
-|---|---|
-| **Windows** | ✅ closed-cable; off-air: 128,238 packets, 0 sync errors at 32,768-byte reads |
-| **Linux** | ✅ Raspberry Pi 5 (aarch64): 127,890 packets, 0 sync errors at 32,768-byte reads; 14/38 UHF channels lock on a full sweep |
-| **macOS** | ✅ Intel x86_64 measured 2026-11-03: cold upload, tune, lock, 121,628 packets, 0 sync errors; Apple Silicon untested |
-| **Android** | ✅ vendor app 2026-10-18/21; our Java demo ran 2026-11-03 on Android 15 (202,884 packets) |
+Windows, Linux, macOS (Intel and Apple Silicon) and Android. All four are measured on hardware. No kernel driver is involved: libusb over WinUSB on Windows, udev on Linux, libusb on
+macOS.
 
-`✅` measured on hardware · `🟡` code exists, not run on that platform.
+## Install
 
-## Firmware
+From a checkout — pyusb is vendored, so no `pip install` is needed.
 
-9,036 bytes, SHA-256
-`451b09a40d072d3e7c0b805f3d180a8c8e10456a3768cce0cc27510c05c3575c`, sent as
-189 chunks. The driver hashes it and refuses a different image.
+```bash
+python -m it9175 --version      # it9175 0.3.0 (it9175-pbcnx)
+python -m it9175 list           # finds the 048d devices present
+python -m it9175 sim            # the whole protocol against a simulated device, no hardware needed
+```
 
-It is vendor material and is **not in this distribution**: the private tree
-carries it at `it9175/firmware.bin` and the release withholds it. Supply it with
-`--firmware PATH` or `IT9175_FIRMWARE`; do not redistribute it (see
-[`NOTICE`](NOTICE)). The simulator and tests run without it, uploading
-placeholder zeros.
+- **Windows**: bind the dongle to WinUSB with [Zadig](https://zadig.akeo.ie/) and replug it, then get
+  `libusb-1.0.dll` from <https://libusb.info> and set `IT9175_LIBUSB` to its full path (or copy it next to
+  `python.exe`). Zadig is the device binding; libusb is the library the driver loads.
+- **Linux**: `sudo cp udev/99-it9175.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger`,
+  then replug. The rule grants `uaccess` plus group `plugdev` (needed over SSH, where there is no logind seat).
+- **macOS**: install libusb (`brew install libusb`); on Apple Silicon use an arm64 Python and libusb.
 
-## Run
+**Firmware.** The image is not in this repository — it is vendor material. Supply your own with `--firmware PATH` or
+`IT9175_FIRMWARE`; it is checked for size and SHA-256 before use. `--version`, `list` and `sim` work without it;
+anything that opens the stick needs it.
+
+## Use
 
 ```bash
 python -m it9175 list
-python -m it9175 probe --freq 479143       # init, tune, report
-python -m it9175 play --freq 479143 --out capture.ts
-python -m it9175 play --freq 479143 --udp 127.0.0.1:5000
-python -m it9175 scan                      # 473.143–695.143 MHz, 6 MHz steps
+python -m it9175 tune  --freq 497143
+python -m it9175 tmcc  --freq 497143
+python -m it9175 play  --freq 497143 --seconds 30 --out capture.ts
 ```
 
-`probe`, `tune`, `play` and `scan` accept `--sim` (fake device, same code path);
-`-v` sends failed exchanges and driver notes to stderr.
+Android / JVM:
 
-## Simulator and tests
-
-```bash
-python -m it9175 sim                       # init, tune and TS against SimBackend
-python -m unittest discover -s tests       # 21 tests, no hardware
+```java
+Tuner tuner = provider.open(context, device, firmware, listener);
+tuner.open();
+tuner.tune(497143);
+tuner.start();
 ```
 
-`SimBackend` returns registers that were written into it and a hard-coded
-`0x47 = 1`; it proves ordering and arithmetic, never what silicon becomes. A
-sim pass says nothing about a lock or the vendor image.
+`it9175/java/android/demo` is a working activity that lists, tunes and plays.
 
-## Java / Android
+## License
 
-`it9175/java` is a dependency-free port of the protocol, firmware upload, tuner
-init, tuning and status; the app supplies the USB transport and owns the TS
-reader. See [`it9175/java/README.md`](it9175/java/README.md). The `android/`
-tree next to it carries the USB adapter (`AndroidTransport`, `AndroidTsReader`,
-`device_filter.xml`) and a minimal demo app that builds into a ≈42 KB APK and
-ran on a Xiaomi `22081212UG`, Android 15 (202,884 packets, 8 PAT programs).
-
-`SelfTest` replays init + two tunes and compares every write with the Python
-command log: `it9175 java self-test: OK (295 commands)`. `Tables.java` and that
-log regenerate byte-identically from the Python tables; the generator is kept in
-the private tree.
-
-## More
-
-- [`INSTALL.md`](INSTALL.md) — Windows, Linux, macOS and Android setup
-- [`docs/protocol.md`](docs/protocol.md) — framing, AFA commands, firmware
-  model, tune path, status registers, simulator limits
-- [`docs/verification.md`](docs/verification.md) — every number and its date
-- [`CHANGELOG.md`](CHANGELOG.md) — what changed, and when
-
-## Licence
-
-MIT — see [`LICENSE`](LICENSE). Copyright (c) 2026 The IT9175 Open Driver Authors. Same terms as `it9308`/`it9309`. The Java core
-is a port of OpenDTV's `It9175Tuner` (`jpdcs/OpenDTV`, MIT); the Python driver,
-the protocol document and the verification record are this project's. Nothing
-GPL crosses in. The vendor firmware is outside the licence (`NOTICE`).
+MIT — see `LICENSE`. `NOTICE` lists what is not ours.

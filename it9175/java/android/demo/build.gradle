@@ -6,31 +6,36 @@
 //
 //   gradle assembleDebug --offline
 //
-// The vendor firmware is NOT in this repo or in the APK: push it to the app's
-// external files directory before running (see README.md).
+// The vendor firmware: when this demo is built from a PRIVATE checkout, the task
+// below copies it into the APK's assets so the demo is self-contained on a
+// fresh device (the app copies it to its files dir on first run). The APK then
+// carries vendor material and must never be redistributed. In a public tree the
+// file is absent, the task skips, and the app asks for a firmware push as before.
 
 plugins {
     id 'com.android.application' version '8.10.1'
 }
 
 android {
-    namespace 'ph.pbcnx.it9175.demo'
+    namespace 'com.pbcnx.drivers.it9175.demo'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'ph.pbcnx.it9175.demo'
+        applicationId 'com.pbcnx.drivers.it9175.demo'
         minSdk 23
         targetSdk 34
-        versionCode 3
-        versionName '0.2.1'
+        versionCode 4
+        versionName '0.3.0'
     }
 
     sourceSets {
         main {
             java.srcDirs = [
                     'src/main/java',
-                    '../../src/main/java',   // it9175 java core
-                    '../src/main/java'      // AndroidTransport / AndroidTsReader
+                    '../../src/main/java',        // it9175 java core
+                    '../src/main/java',           // AndroidTransport / AndroidTsReader
+                    '../../contract/src/main/java', // the door interfaces (com.pbcnx.tuner)
+                    '../../package/src/main/java'   // the door provider (com.pbcnx.drivers.it9175.driver)
             ]
             res.srcDirs = ['src/main/res']
             manifest.srcFile 'src/main/AndroidManifest.xml'
@@ -42,3 +47,19 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 }
+
+// Bundle the vendor firmware when a private checkout has it. Never committed:
+// demo/src/main/assets/ is git-ignored, and the file only appears in a local APK.
+def firmwareSource = file('../../../../it9175/firmware.bin')
+def firmwareAsset = file('src/main/assets/firmware.bin')
+
+tasks.register('bundleFirmware') {
+    onlyIf { firmwareSource.isFile() }
+    doLast {
+        firmwareAsset.parentFile.mkdirs()
+        firmwareAsset.bytes = firmwareSource.bytes
+        logger.lifecycle("bundled firmware: ${firmwareSource} -> assets (${firmwareSource.length()} bytes)")
+    }
+}
+
+tasks.matching { it.name == 'preBuild' }.configureEach { dependsOn 'bundleFirmware' }

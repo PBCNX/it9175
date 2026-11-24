@@ -1,30 +1,25 @@
-it9175 bundles two things that are not original work:
+it9175 — what is not ours
+=========================
 
-1. `it9175/firmware.bin` — the IT9175 firmware image, extracted from the vendor Android application. It is vendor firmware, not covered by this
-   project's MIT licence. It is kept for private interoperability testing only;
-   do not redistribute it. The protocol code works without it (the driver
-   simply cannot start a blank dongle).
+1. The firmware image. The IT9175 firmware is vendor firmware extracted from the vendor's own application. It is not
+   covered by this project's MIT licence and it is **not distributed here**. Supply your own copy (INSTRUCTIONS.md says
+   where the driver looks for it); it is verified for size and SHA-256 before use.
 
-2. `vendor/usb/` (pyusb, BSD-3-Clause) and
-   `vendor/windows/x64/libusb-1.0.dll` (libusb, LGPL-2.1). Their licences are
-   in `vendor/usb/LICENSE` and `vendor/windows/x64/LICENSE`.
+2. vendor/usb — pyusb, BSD-3-Clause. Its licence text is in vendor/usb/LICENSE. It is vendored so that a checkout runs
+   without installing anything.
 
-## Upstream
+3. libusb (LGPL-2.1) is a system dependency, not part of this tree: the driver loads the platform's libusb at runtime
+   (Windows: the WinUSB/libusb driver package; Linux and macOS: the distribution's libusb). Nothing here redistributes
+   it.
 
-The Java core (`it9175/java`) is a port of OpenDTV's `It9175Tuner` / `AfaCmd` /
-`It9175Data` (`jpdcs/OpenDTV`, MIT). The register tables in `it9175/tables.py`
-were generated from that same source. The Python driver, `docs/protocol.md` and
-the verification record are original to this project.
+4. it9175/java — a port of **OpenDTV** (<https://github.com/jpdcs/OpenDTV>), which is MIT licensed:
 
-The direction is written down on purpose: **OpenDTV is the original; this tree
-references it.** On 2026-11-03 the 295-command parity log was run against
-OpenDTV's own `It9175Tuner` with identical canned inputs — byte-identical writes,
-so the two cores agree on init and two tunes.
+       Copyright (c) 2026 jpdcs
 
-## Provenance marker
+   The permission notice that applies to that copyright is the MIT text in `LICENSE`, which this project's own files
+   use under their own holder. A copy of this tree therefore carries both notices, and the ported files say so in
+   their headers.
 
-`it9175-pbcnx` is a visible provenance/attribution string in the Python and Java
-metadata (`--version`, `It9175Device.PROVENANCE`). It is intended to make the
-origin searchable and to encourage the MIT notice to travel with copies. It is
-**not** telemetry: it performs no network or device I/O, carries no user or
-device identifier, and changes no protocol bytes.
+The `com.pbcnx.tuner` contract and the Android adapters are original to this project.
+
+Copyright (c) 2026 The IT9175 Open Driver Authors · marker: it9175-pbcnx · MIT (see LICENSE).

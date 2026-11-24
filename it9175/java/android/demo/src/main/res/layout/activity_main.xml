@@ -15,6 +15,30 @@
         android:text="starting" />
 
     <Button
+        android:id="@+id/door"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Door (provider)" />
+
+    <Button
+        android:id="@+id/zap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Zap" />
+
+    <Button
+        android:id="@+id/restart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Restart" />
+
+    <Button
+        android:id="@+id/recover"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Recover" />
+
+    <Button
         android:id="@+id/stop"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

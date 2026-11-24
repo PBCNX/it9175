@@ -5,7 +5,9 @@ device through libusb, SimBackend is a register-level fake used by the tests and
 by `it9175 sim`.
 """
 import os
+import sys
 import time
+from typing import Protocol
 
 from . import afa
 from .tuner import Tuner
@@ -41,6 +43,17 @@ def _is_stall(exc):
     return "pipe error" in text or "overflow" in text
 
 
+class TsSource(Protocol):
+    """Structural seam for the 0x84 reader.
+
+    UsbBackend, SimBackend and an app's own adapter all satisfy it; the Tuner
+    never reads TS, so this is the only TS interface the core needs.
+    """
+
+    def read_ts(self, size: int = ..., timeout_ms: int = ...) -> bytes:
+        ...
+
+
 # ---------------------------------------------------------------------------
 # Real USB backend
 # ---------------------------------------------------------------------------
@@ -69,7 +82,22 @@ def _load_backend():
         return libusb1.get_backend(find_library=lambda name: explicit)
     if os.name == "nt" and os.path.exists(local):
         return libusb1.get_backend(find_library=lambda name: local)
-    return libusb1.get_backend()
+    backend = libusb1.get_backend()
+    if backend is None and sys.platform == "darwin":
+        # Homebrew on Apple Silicon is outside pyusb's default search path
+        # (the user's lib directory, /usr/local/lib, /usr/lib), and a mismatch
+        # is invisible until
+        # the first find(). Try the two Homebrew prefixes explicitly.
+        for path in (
+                "/opt/homebrew/lib/libusb-1.0.dylib",
+                "/opt/homebrew/opt/libusb/lib/libusb-1.0.dylib",
+                "/usr/local/lib/libusb-1.0.dylib",
+                "/usr/local/opt/libusb/lib/libusb-1.0.dylib"):
+            if os.path.exists(path):
+                backend = libusb1.get_backend(find_library=lambda name, p=path: p)
+                if backend is not None:
+                    break
+    return backend
 
 
 def find_devices():
@@ -79,7 +107,7 @@ def find_devices():
 
     backend = _load_backend()
     if backend is None:
-        raise UsbError("libusb backend not available (install libusb-1.0, or keep vendor/windows/x64/libusb-1.0.dll)")
+        raise UsbError("libusb backend not available: the driver needs libusb-1.0. Windows: download libusb's Windows binaries from https://libusb.info and set IT9175_LIBUSB to the full path of libusb-1.0.dll. macOS: brew install libusb. Linux: install libusb-1.0-0.")
     return list(usb.core.find(find_all=True, idVendor=VID, backend=backend))
 
 
@@ -283,7 +311,7 @@ class It9175Device:
         self.link.sleep(ms)
 
     # -- bring-up -----------------------------------------------------------
-    def init(self):
+    def init(self, cold=False):
         ver = self.read(0, 0x1222, 1)
         ident = self.read(0, 0x1223, 2)
         if ver is None or ident is None:
@@ -297,7 +325,9 @@ class It9175Device:
         self.note("fw LINK before=%s" % (fw.hex(" ") if fw else "none"))
         if fw is None:
             return False
-        if not any(fw):
+        if cold or not any(fw):
+            if cold:
+                self.note("cold start: re-uploading the firmware over the resident image")
             if not self.load_firmware():
                 return False
             fw = self.link.fw_version(0)
@@ -332,6 +362,36 @@ class It9175Device:
         self.note(self.tuner.describe())
         self.note(self.diag_regs("after tuner init"))
         return ok
+
+    def recover(self, retries=2, wait_s=2.0):
+        """Warm re-init with retries: safe on a running chip, and enough for most stuck sessions.
+
+        This deliberately does NOT force a firmware upload. Measured on hardware 2026-11-20: writing
+        the pre-upload sequence to a **running** chip wipes the resident image and the device
+        re-enumerates, so the handle dies mid-attempt - the upload then has to happen over a fresh
+        handle. The safe sequence is: warm init (this method); if that fails, `force_boot()` and let
+        the caller re-open the device (see `cmd_recover`).
+        """
+        for attempt in range(1, retries + 1):
+            if attempt > 1:
+                self.sleep(int(wait_s * 1000))
+            if self.init():
+                if attempt > 1:
+                    self.note("recover: warm bring-up succeeded on attempt %d" % attempt)
+                return True
+            self.note("recover: warm attempt %d did not bring the chip up" % attempt)
+        return False
+
+    def force_boot(self):
+        """Send a running chip back to its boot ROM: the pre-upload sequence.
+
+        Measured on hardware (2026-11-20): this stops the resident firmware and the device
+        **re-enumerates** with a blank version, after which an `init()` on a fresh handle uploads a
+        new image. The handle used here is dead afterwards - the caller must re-open the device.
+        """
+        return bool(self.write(0, 0x4BFB, b"\x00")
+                    and self.write(0, 0xCFFF, b"\x00")
+                    and self.write(0, 0xF103, b"\x07"))
 
     def load_firmware(self):
         from . import firmware
@@ -439,7 +499,7 @@ class It9175Device:
         self.locked = self.tuner.wait_lock(quick)
         status = self.tuner.status()
         self.locked = self.locked and status["locked"]
-        status["locked"] = self.locked
+        status.locked = self.locked
         self.note("tune %d kHz: programmed in %d ms, lock=%s after %d ms" % (
             freq_khz, int((time.time() - started) * 1000), self.locked,
             int((time.time() - started) * 1000)))
@@ -450,6 +510,40 @@ class It9175Device:
 
     def status(self):
         return self.tuner.status() if self.tuner else None
+
+    def tmcc_settled(self, attempts=8, delay_s=0.15):
+        """A TMCC reading that is **settled**: two consecutive valid readings that agree.
+
+        A block that is merely *valid* can still describe the previous mux - a switch leaves TMCC
+        transient for a few hundred ms (measured on two chips, 2026-11-20). Callers that display a
+        channel should use this, not :meth:`tmcc`.
+        """
+        previous = None
+        for _ in range(max(2, attempts)):
+            reading = self.tmcc()
+            if reading is not None and reading.valid:
+                if previous is not None and str(previous) == str(reading):
+                    return reading
+                previous = reading
+            else:
+                previous = None
+            time.sleep(delay_s)
+        return None
+
+    def tmcc(self):
+        """The ISDB-T transmission parameters the demod reports (see :mod:`it9175.tmcc`).
+
+        Readable before lock: the demod decodes the TMCC signal and publishes mode,
+        guard interval, partial reception and the three layers even when the TS has
+        not locked, which is how a host can show a channel's parameters up front.
+        """
+        from . import tmcc as tmcc_module
+        words = {}
+        for register in tmcc_module.REGISTERS:
+            value = self.read(8, register, 2)
+            if value and len(value) >= 2:
+                words[register] = (value[0] << 8) | value[1]
+        return tmcc_module.decode(words)
 
     def read_ts(self, size=TS_READ_SIZE, timeout_ms=500, align=True):
         data = self.link.backend.read_ts(size, timeout_ms)

@@ -1,0 +1,61 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.pbcnx.drivers'
+version = '0.3.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+sourceSets {
+    main {
+        java.srcDirs = [
+                'src/main/java',
+                '../src/main/java',            // the core
+                '../android/src/main/java'     // the Android adapter this package wraps
+        ]
+    }
+}
+
+def androidJar = System.getenv('ANDROID_HOME') ?
+        "${System.getenv('ANDROID_HOME')}/platforms/android-34/android.jar" : ''
+
+repositories {
+    maven {
+        url = uri("${rootDir}/../../../dist/m2/repository")
+    }
+}
+
+dependencies {
+    // The door: the contract artefact this package compiles against.
+    api 'com.pbcnx.tuner:contract:2.0.0'
+    if (androidJar && file(androidJar).exists()) {
+        compileOnly files(androidJar)
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifactId = 'it9175'
+        }
+    }
+    repositories {
+        maven {
+            url = uri("${rootDir}/../../../dist/m2/repository")
+        }
+    }
+}
+
+// Reproducible jars: by default `jar` stamps every entry with its file mtime, so a rebuild of unchanged
+// sources produces a different artefact - and a hash-pinned artefact is then pinning a timestamp. Fixed mtimes
+// and stable entry order make two builds of the same classes byte-identical (found while pinning a driver package, 2026-11-22).
+tasks.withType(Jar).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
